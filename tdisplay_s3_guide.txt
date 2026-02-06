@@ -1,0 +1,194 @@
+# LilyGo T-Display S3 Setup Guide
+
+## 📌 Changes Made for T-Display S3
+
+### 1. Updated platformio.ini
+- Changed board to `lilygo-t-display-s3`
+- Replaced async web server with compatible version
+- Added TFT_eSPI configuration in build flags
+- Added PSRAM and USB CDC configuration
+
+### 2. Updated Config.h
+- Changed I2C pins to GPIO 43/44
+- Set HOST_SERIAL to use GPIO 43/44
+- Added TFT_ENABLED flag
+
+### 3. Added TFT Display Support
+- Created TFTDisplay.h/cpp classes
+- Real-time waveform on built-in display
+- Shows CO2 value, respiratory rate, and mode
+- Alarm indication with red circle
+- Beautiful cyan waveform display
+
+## 🔌 T-Display S3 Pinout
+
+```
+Built-in Display: ST7789 170x320
+├── MOSI: GPIO 35
+├── SCK:  GPIO 36
+├── CS:   GPIO 12
+├── DC:   GPIO 13
+├── RST:  GPIO 9
+└── BL:   GPIO 38 (backlight)
+
+Serial1 (for protocol):
+├── TX: GPIO 43
+└── RX: GPIO 44
+
+I2C (same pins as Serial1 - choose one):
+├── SDA: GPIO 43
+└── SCL: GPIO 44
+
+USB Serial (CMD_SERIAL):
+└── Built-in USB CDC
+```
+
+## ⚠️ Important Notes
+
+**Serial1 and I2C share pins!**
+- You can use EITHER Serial1 OR I2C sensor, not both
+- For protocol communication: Use Serial1 (default)
+- For I2C sensor: Change pins in Config.h:
+  ```cpp
+  #define I2C_SDA 18  // Use different pins
+  #define I2C_SCL 17
+  ```
+
+## 🚀 Quick Start
+
+### 1. Install PlatformIO
+```bash
+# VS Code extension or CLI
+pio platform install espressif32
+```
+
+### 2. Create Project
+```bash
+mkdir CO2_Emulator_TDisplay
+cd CO2_Emulator_TDisplay
+mkdir src
+```
+
+### 3. Copy Files
+Copy all artifacts into `src/` folder:
+- Config.h
+- PacketBuilder.h/cpp
+- I2CSensorInterface.h/cpp
+- ConfigStorage.h/cpp
+- WaveformGenerator.h/cpp
+- AlarmManager.h/cpp
+- DeviceState.h/cpp
+- ProtocolHandler.h/cpp
+- CommandLineInterface.h/cpp
+- ProtocolReceiver.h/cpp
+- WebInterface.h/cpp
+- **TFTDisplay.h/cpp** ← NEW!
+- CO2Emulator.h/cpp
+- main.cpp
+
+Copy to root:
+- platformio.ini
+
+### 4. Build and Upload
+```bash
+pio run -t upload
+pio device monitor
+```
+
+## 📺 TFT Display Layout
+
+```
+┌─────────────────┐
+│   CO2 EMU  [RUN]│ ← Status bar
+├─────────────────┤
+│                 │
+│    Waveform     │
+│                 │
+│    ~~~~~~~~     │ ← Real-time CO2
+│   ~        ~    │   waveform
+│  ~          ~   │
+│ ~            ~  │
+│                 │
+├─────────────────┤
+│  38.5  mmHg  ● │ ← CO2 value + alarm
+│  15 bpm        │ ← Respiratory rate
+└─────────────────┘
+```
+
+## 🎨 Display Features
+
+- **Cyan waveform**: Live CO2 trace
+- **Green text**: Normal CO2 values
+- **Red text**: Alarm condition
+- **Red circle**: Active alarm indicator
+- **Navy blue**: Status messages
+- **10 Hz update rate**: Smooth animation
+
+## 🔧 Customization
+
+### Change Display Orientation
+In TFTDisplay.cpp:
+```cpp
+tft.setRotation(0);  // 0=Portrait, 1=Landscape, 2=Inv Portrait, 3=Inv Landscape
+```
+
+### Adjust Waveform Colors
+In TFTDisplay.cpp:
+```cpp
+tft.drawLine(i-1, y1, i, y2, TFT_CYAN);  // Change TFT_CYAN to any color
+```
+
+Available colors:
+- TFT_BLACK, TFT_NAVY, TFT_DARKGREEN, TFT_DARKCYAN
+- TFT_MAROON, TFT_PURPLE, TFT_OLIVE, TFT_LIGHTGREY
+- TFT_DARKGREY, TFT_BLUE, TFT_GREEN, TFT_CYAN
+- TFT_RED, TFT_MAGENTA, TFT_YELLOW, TFT_WHITE
+
+### Disable TFT (for testing)
+In Config.h:
+```cpp
+#define TFT_ENABLED false
+```
+
+## 🐛 Troubleshooting
+
+**Display stays black:**
+- Check backlight is on (GPIO 38)
+- Verify TFT_eSPI library installed
+- Check build_flags in platformio.ini
+
+**Compile errors with TFT_eSPI:**
+- Make sure build_flags are in platformio.ini
+- These flags configure TFT_eSPI automatically
+- No User_Setup.h file needed!
+
+**Web server compile errors:**
+- Old ESPAsyncWebServer won't work
+- Must use mathieucarbou's fork (already in platformio.ini)
+
+**USB Serial not working:**
+- Check ARDUINO_USB_CDC_ON_BOOT=1 in build_flags
+- Press reset button after upload
+- Try different USB cable
+
+## 📱 Using with Phone
+
+1. Power on device
+2. Connect to WiFi "CO2-Emulator" (password: emulator123)
+3. Open browser to 192.168.4.1
+4. View waveform on both display AND phone!
+
+## 🎯 Serial Commands
+
+Connect USB, open serial monitor at 115200:
+```
+status   - Show settings
+amp 40   - Set amplitude to 40
+freq 0.3 - Set frequency to 0.3 Hz
+save     - Save to EEPROM
+help     - Show all commands
+```
+
+---
+
+**Enjoy your CO2 Emulator with beautiful TFT display!** 🎉
