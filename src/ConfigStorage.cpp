@@ -14,8 +14,9 @@ void ConfigStorage::saveConfig(const Config& cfg) {
   prefs.putFloat("alarmLow", cfg.alarmLow);
   prefs.putBool("alarmHighEn", cfg.alarmHighEnabled);
   prefs.putBool("alarmLowEn", cfg.alarmLowEnabled);
-  prefs.putBool("useI2C", cfg.useI2CSensor);
-  
+  prefs.putBool("useCoco", cfg.useCocoSensor);
+  prefs.putUChar("waveType", cfg.waveformType);
+
   CMD_SERIAL.println("Configuration saved to EEPROM");
 }
 
@@ -29,8 +30,9 @@ ConfigStorage::Config ConfigStorage::loadConfig() {
   cfg.alarmLow = prefs.getFloat("alarmLow", 30.0);
   cfg.alarmHighEnabled = prefs.getBool("alarmHighEn", false);
   cfg.alarmLowEnabled = prefs.getBool("alarmLowEn", false);
-  cfg.useI2CSensor = prefs.getBool("useI2C", false);
-  
+  cfg.useCocoSensor = prefs.getBool("useCoco", false);
+  cfg.waveformType = prefs.getUChar("waveType", 0);
+
   CMD_SERIAL.println("Configuration loaded from EEPROM");
   return cfg;
 }

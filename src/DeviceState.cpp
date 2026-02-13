@@ -1,7 +1,7 @@
 #include "DeviceState.h"
 
-DeviceState::DeviceState() 
-  : continuousMode(false), initialized(false), syncCounter(0),
+DeviceState::DeviceState()
+  : usbMode(UsbMode::DEBUG), continuousMode(false), initialized(false), syncCounter(0),
     barometricPressure(760), o2Compensation(16), balanceGas(0),
     anestheticAgent(0), gasTemp(350), etco2TimePeriod(10),
     noBreathTimeout(20), co2Units(0),
@@ -89,3 +89,7 @@ void DeviceState::updateParameters(uint16_t etco2Val, uint16_t respRateVal) {
 uint16_t DeviceState::getETCO2() const { return etco2; }
 uint16_t DeviceState::getRespRate() const { return respRate; }
 uint16_t DeviceState::getInspCO2() const { return inspCO2; }
+
+void DeviceState::setUsbMode(UsbMode mode) { usbMode = mode; }
+DeviceState::UsbMode DeviceState::getUsbMode() const { return usbMode; }
+bool DeviceState::isUsbProtocolMode() const { return usbMode == UsbMode::PROTOCOL; }

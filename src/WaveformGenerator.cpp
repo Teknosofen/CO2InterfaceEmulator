@@ -1,20 +1,26 @@
 #include "WaveformGenerator.h"
 
-WaveformGenerator::WaveformGenerator() 
+WaveformGenerator::WaveformGenerator()
   : amplitude(38.0), frequency(0.25), baseline(0.0), phase(0.0),
-    i2cSensor(nullptr), useI2CSensor(false) {}
+    cocoSensor(nullptr), useCocoSensor(false), waveformType(WaveformType::SINE) {}
 
-void WaveformGenerator::setI2CSensor(I2CSensorInterface* sensor) { 
-  i2cSensor = sensor; 
+void WaveformGenerator::setCocoSensor(ShdlcSensorInterface* sensor) {
+  cocoSensor = sensor;
 }
 
-void WaveformGenerator::setUseI2CSensor(bool use) { 
-  useI2CSensor = use && i2cSensor && i2cSensor->isAvailable(); 
+void WaveformGenerator::setUseCocoSensor(bool use) {
+  useCocoSensor = use && cocoSensor && cocoSensor->isAvailable();
+  if (useCocoSensor && !cocoSensor->isMeasurementRunning()) {
+    cocoSensor->startMeasuring();
+  }
 }
 
-bool WaveformGenerator::isUsingI2CSensor() const { 
-  return useI2CSensor; 
+bool WaveformGenerator::isUsingCocoSensor() const {
+  return useCocoSensor;
 }
+
+void WaveformGenerator::setWaveformType(WaveformType type) { waveformType = type; }
+WaveformGenerator::WaveformType WaveformGenerator::getWaveformType() const { return waveformType; }
 
 void WaveformGenerator::setAmplitude(float amp) { amplitude = amp; }
 void WaveformGenerator::setFrequency(float freq) { frequency = freq; }
@@ -26,15 +32,50 @@ float WaveformGenerator::getFrequency() const { return frequency; }
 float WaveformGenerator::getBaseline() const { return baseline; }
 float WaveformGenerator::getPhase() const { return phase; }
 
+float WaveformGenerator::generateCapnogramSample(float breathPhase) {
+  float etco2 = amplitude;
+  float base = baseline;
+
+  if (breathPhase < 0.08f) {
+    // Inspiratory baseline - no CO2
+    return base;
+  } else if (breathPhase < 0.18f) {
+    // Expiratory upstroke - rapid rise (smoothstep)
+    float t = (breathPhase - 0.08f) / 0.10f;
+    float smooth = t * t * (3.0f - 2.0f * t);
+    return base + smooth * etco2;
+  } else if (breathPhase < 0.55f) {
+    // Alveolar plateau with slight upslope
+    float t = (breathPhase - 0.18f) / 0.37f;
+    return base + etco2 * (1.0f + 0.05f * t);
+  } else if (breathPhase < 0.60f) {
+    // Inspiratory downstroke - sharp drop (smoothstep)
+    float t = (breathPhase - 0.55f) / 0.05f;
+    float smooth = t * t * (3.0f - 2.0f * t);
+    return base + etco2 * 1.05f * (1.0f - smooth);
+  } else {
+    // Inspiratory baseline
+    return base;
+  }
+}
+
 float WaveformGenerator::getSample() {
-  if (useI2CSensor && i2cSensor) {
+  if (useCocoSensor && cocoSensor) {
     float sensorValue;
-    if (i2cSensor->getSample(sensorValue)) {
+    if (cocoSensor->getSample(sensorValue)) {
       return max(0.0f, sensorValue);
     }
   }
-  
+
   float time = millis() / 1000.0;
+
+  if (waveformType == WaveformType::CAPNOGRAM) {
+    float period = 1.0f / frequency;
+    float breathPhase = fmod(time + phase / (2.0f * PI) * period, period) / period;
+    return max(0.0f, generateCapnogramSample(breathPhase));
+  }
+
+  // Default: sine wave
   float value = baseline + amplitude * sin(2.0 * PI * frequency * time + phase);
   return max(0.0f, value);
 }
@@ -52,5 +93,6 @@ void WaveformGenerator::loadFromConfig(const ConfigStorage::Config& cfg) {
   frequency = cfg.frequency;
   baseline = cfg.baseline;
   phase = cfg.phase;
-  useI2CSensor = cfg.useI2CSensor;
+  useCocoSensor = cfg.useCocoSensor;
+  waveformType = static_cast<WaveformType>(cfg.waveformType);
 }

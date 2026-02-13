@@ -4,7 +4,14 @@
 #include <Arduino.h>
 
 class DeviceState {
+public:
+  enum class UsbMode : uint8_t {
+    DEBUG,      // USB acts as CLI/debug (default)
+    PROTOCOL    // USB mirrors Respironics protocol (Serial1)
+  };
+
 private:
+  UsbMode usbMode;
   bool continuousMode;
   bool initialized;
   uint8_t syncCounter;
@@ -76,6 +83,10 @@ public:
   uint16_t getETCO2() const;
   uint16_t getRespRate() const;
   uint16_t getInspCO2() const;
+
+  void setUsbMode(UsbMode mode);
+  UsbMode getUsbMode() const;
+  bool isUsbProtocolMode() const;
 };
 
 #endif // DEVICE_STATE_H

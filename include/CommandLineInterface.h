@@ -2,6 +2,7 @@
 #define COMMAND_LINE_INTERFACE_H
 
 #include <Arduino.h>
+#include <functional>
 #include "WaveformGenerator.h"
 #include "AlarmManager.h"
 #include "DeviceState.h"
@@ -15,15 +16,17 @@ private:
   ConfigStorage& storage;
   Stream& serial;
   String lineBuffer;
-  
+  std::function<void(bool)> usbModeCallback;
+
   void printHelp();
   void printStatus();
   void processLine(String line);
-  
+
 public:
-  CommandLineInterface(WaveformGenerator& wave, AlarmManager& alarm, 
+  CommandLineInterface(WaveformGenerator& wave, AlarmManager& alarm,
                        DeviceState& dev, ConfigStorage& stor, Stream& ser);
-  
+
+  void setUsbModeCallback(std::function<void(bool)> cb);
   void update();
   void printWelcome();
 };

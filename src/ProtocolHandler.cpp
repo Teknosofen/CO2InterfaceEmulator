@@ -1,22 +1,55 @@
 #include "ProtocolHandler.h"
 
-ProtocolHandler::ProtocolHandler(DeviceState& dev, WaveformGenerator& wave, 
-                                 AlarmManager& alarm, Stream& ser)
-  : device(dev), waveform(wave), alarms(alarm), serial(ser) {}
+ProtocolHandler::ProtocolHandler(DeviceState& dev, WaveformGenerator& wave,
+                                 AlarmManager& alarm, Stream& primaryOutput)
+  : device(dev), waveform(wave), alarms(alarm), outputCount(1) {
+  outputs[0] = &primaryOutput;
+  for (uint8_t i = 1; i < MAX_OUTPUTS; i++) outputs[i] = nullptr;
+}
+
+void ProtocolHandler::addOutput(Stream& output) {
+  for (uint8_t i = 0; i < outputCount; i++) {
+    if (outputs[i] == &output) return; // Already registered
+  }
+  if (outputCount < MAX_OUTPUTS) {
+    outputs[outputCount++] = &output;
+  }
+}
+
+void ProtocolHandler::removeOutput(Stream& output) {
+  for (uint8_t i = 0; i < outputCount; i++) {
+    if (outputs[i] == &output) {
+      // Shift remaining entries down
+      for (uint8_t j = i; j < outputCount - 1; j++) {
+        outputs[j] = outputs[j + 1];
+      }
+      outputs[--outputCount] = nullptr;
+      return;
+    }
+  }
+}
+
+void ProtocolHandler::sendPacketToAll(PacketBuilder& packet) {
+  for (uint8_t i = 0; i < outputCount; i++) {
+    if (outputs[i]) {
+      packet.send(*outputs[i]);
+    }
+  }
+}
 
 void ProtocolHandler::sendNACK(uint8_t errorCode) {
   PacketBuilder packet;
   packet.addCommand(Protocol::CMD_NACK);
   packet.addByte(errorCode);
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::sendSimpleResponse(uint8_t cmd) {
   PacketBuilder packet;
   packet.addCommand(cmd);
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::handleGetRevision(uint8_t format) {
@@ -26,7 +59,7 @@ void ProtocolHandler::handleGetRevision(uint8_t format) {
   packet.addByte(format);
   for (const char* p = revStr; *p; p++) packet.addByte(*p);
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::handleSensorCapabilities(uint8_t sci, uint8_t scb) {
@@ -35,13 +68,13 @@ void ProtocolHandler::handleSensorCapabilities(uint8_t sci, uint8_t scb) {
   packet.addByte(sci);
   packet.addByte((sci == 0 || sci == 1) ? 0x01 : (scb & 0x01));
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::handleGetSetSettings(uint8_t isb, const uint8_t* data, uint8_t dataLen) {
   PacketBuilder packet;
   packet.addCommand(Protocol::CMD_GET_SET_SETTINGS);
-  
+
   if (dataLen > 0) {
     switch (isb) {
       case 1: device.setBarometricPressure(PacketBuilder::decode2Bytes(data[0], data[1])); break;
@@ -49,13 +82,13 @@ void ProtocolHandler::handleGetSetSettings(uint8_t isb, const uint8_t* data, uin
       case 5: device.setETCO2TimePeriod(data[0]); break;
       case 6: device.setNoBreathTimeout(data[0]); break;
       case 7: device.setCO2Units(data[0]); break;
-      case 11: device.setGasCompensations(data[0], data[1], 
+      case 11: device.setGasCompensations(data[0], data[1],
                                          PacketBuilder::decode2Bytes(data[2], data[3])); break;
     }
   }
-  
+
   packet.addByte(isb);
-  
+
   switch (isb) {
     case 1: packet.add2ByteValue(device.getBarometricPressure()); break;
     case 4: packet.add2ByteValue(device.getGasTemp()); break;
@@ -77,15 +110,15 @@ void ProtocolHandler::handleGetSetSettings(uint8_t isb, const uint8_t* data, uin
       packet.addByte(0);
       break;
   }
-  
+
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::handleZero() {
   PacketBuilder packet;
   packet.addCommand(Protocol::CMD_ZERO);
-  
+
   if (!device.isCompensationsSet()) {
     packet.addByte(1);
   } else if (device.isZeroInProgress()) {
@@ -94,26 +127,26 @@ void ProtocolHandler::handleZero() {
     device.startZero();
     packet.addByte(0);
   }
-  
+
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::sendWaveformPacket(bool includeDPI, uint8_t dpiType) {
   PacketBuilder packet;
   packet.addCommand(Protocol::CMD_CO2_WAVEFORM);
   packet.addByte(device.getAndIncrementSync());
-  
+
   float co2Value = waveform.getSample();
   uint8_t status = device.getStatusByte1();
   alarms.checkAlarms(co2Value, status);
   device.setStatusByte1(status);
-  
+
   packet.addCO2Waveform(co2Value);
-  
+
   if (includeDPI) {
     packet.addByte(dpiType);
-    
+
     switch (dpiType) {
       case Protocol::DPI_CO2_STATUS:
         packet.addByte(device.getStatusByte1());
@@ -128,22 +161,22 @@ void ProtocolHandler::sendWaveformPacket(bool includeDPI, uint8_t dpiType) {
       case Protocol::DPI_BREATH_DETECTED: break;
     }
   }
-  
+
   packet.finalize();
-  packet.send(serial);
+  sendPacketToAll(packet);
 }
 
 void ProtocolHandler::processCommand(uint8_t* buf, uint8_t len) {
   if (len < 2) return;
-  
+
   uint8_t cmd = buf[0];
   uint8_t nbf = buf[1];
-  
+
   if (PacketBuilder::calculateChecksum(buf, len) != 0) {
     sendNACK(Protocol::NACK_CHECKSUM);
     return;
   }
-  
+
   switch (cmd) {
     case Protocol::CMD_CO2_WAVEFORM:
       device.startContinuousMode();

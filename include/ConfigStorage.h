@@ -15,7 +15,8 @@ public:
     float alarmLow;
     bool alarmHighEnabled;
     bool alarmLowEnabled;
-    bool useI2CSensor;
+    bool useCocoSensor;
+    uint8_t waveformType;  // 0 = SINE, 1 = CAPNOGRAM
   };
   
 private:

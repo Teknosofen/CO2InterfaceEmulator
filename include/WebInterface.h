@@ -5,10 +5,12 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <functional>
 #include "WaveformGenerator.h"
 #include "AlarmManager.h"
 #include "DeviceState.h"
 #include "ConfigStorage.h"
+#include "ShdlcSensorInterface.h"
 #include "Config.h"
 
 class WebInterface {
@@ -19,17 +21,21 @@ private:
   AlarmManager& alarms;
   DeviceState& device;
   ConfigStorage& storage;
-  
+  ShdlcSensorInterface& sensor;
+
+  std::function<void(bool)> usbModeCallback;
+
   float currentCO2Value;
   uint32_t lastDataUpdate;
-  
+
   void setupRoutes();
   String getIndexHTML();
-  
+
 public:
-  WebInterface(WaveformGenerator& wave, AlarmManager& alarm, 
-               DeviceState& dev, ConfigStorage& stor);
-  
+  WebInterface(WaveformGenerator& wave, AlarmManager& alarm,
+               DeviceState& dev, ConfigStorage& stor, ShdlcSensorInterface& sens);
+
+  void setUsbModeCallback(std::function<void(bool)> cb);
   bool begin();
   void update();
 };
