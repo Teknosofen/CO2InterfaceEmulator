@@ -59,6 +59,9 @@ build/
 .idea/
 cmake-build-*/
 
+# Windows reserved names
+nul
+
 # OS Files
 .DS_Store
 .DS_Store?
