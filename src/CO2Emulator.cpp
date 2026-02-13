@@ -3,7 +3,7 @@
 CO2Emulator::CO2Emulator()
   : protocol(device, waveform, alarms, HOST_SERIAL),
     receiver(protocol, HOST_SERIAL),
-    cli(waveform, alarms, device, storage, CMD_SERIAL),
+    cline(waveform, alarms, device, storage, CMD_SERIAL),
     web(waveform, alarms, device, storage),
     tftDisplay(waveform, alarms, device),
     lastWaveformUpdate(0), lastParamUpdate(0), dpiCounter(0) {}
@@ -40,13 +40,13 @@ void CO2Emulator::begin() {
   tftDisplay.clear();
   #endif
   
-  cli.printWelcome();
+  cline.printWelcome();
 }
 
 void CO2Emulator::update() {
   uint32_t now = millis();
   
-  cli.update();
+  cline.update();
   receiver.update();
   device.updateZero();
   web.update();

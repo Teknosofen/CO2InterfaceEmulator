@@ -23,7 +23,7 @@ private:
   DeviceState device;
   ProtocolHandler protocol;
   ProtocolReceiver receiver;
-  CommandLineInterface cli;
+  CommandLineInterface cline;
   WebInterface web;
   TFTDisplay tftDisplay;
   
