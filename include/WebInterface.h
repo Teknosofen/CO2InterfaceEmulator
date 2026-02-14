@@ -7,7 +7,6 @@
 #include <ArduinoJson.h>
 #include <functional>
 #include "WaveformGenerator.h"
-#include "AlarmManager.h"
 #include "DeviceState.h"
 #include "ConfigStorage.h"
 #include "ShdlcSensorInterface.h"
@@ -18,7 +17,6 @@ private:
   AsyncWebServer server;
   AsyncEventSource events;
   WaveformGenerator& waveform;
-  AlarmManager& alarms;
   DeviceState& device;
   ConfigStorage& storage;
   ShdlcSensorInterface& sensor;
@@ -32,7 +30,7 @@ private:
   String getIndexHTML();
 
 public:
-  WebInterface(WaveformGenerator& wave, AlarmManager& alarm,
+  WebInterface(WaveformGenerator& wave,
                DeviceState& dev, ConfigStorage& stor, ShdlcSensorInterface& sens);
 
   void setUsbModeCallback(std::function<void(bool)> cb);

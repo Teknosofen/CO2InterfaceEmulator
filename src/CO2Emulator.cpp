@@ -2,12 +2,12 @@
 
 CO2Emulator::CO2Emulator()
   : cocoSensor(COCO_SERIAL),
-    protocol(device, waveform, alarms, HOST_SERIAL),
+    protocol(device, waveform, HOST_SERIAL),
     receiver(protocol, HOST_SERIAL),
     usbReceiver(nullptr),
-    cline(waveform, alarms, device, storage, CMD_SERIAL),
-    web(waveform, alarms, device, storage, cocoSensor),
-    tftDisplay(waveform, alarms, device),
+    cline(waveform, device, storage, CMD_SERIAL),
+    web(waveform, device, storage, cocoSensor),
+    tftDisplay(waveform, device),
     lastWaveformUpdate(0), lastParamUpdate(0), dpiCounter(0) {}
 
 void CO2Emulator::begin() {
@@ -29,7 +29,6 @@ void CO2Emulator::begin() {
 
   ConfigStorage::Config cfg = storage.loadConfig();
   waveform.loadFromConfig(cfg);
-  alarms.loadFromConfig(cfg);
 
   #if TFT_ENABLED
   tftDisplay.showMessage("WiFi...");

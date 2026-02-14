@@ -1,8 +1,8 @@
 #include "WebInterface.h"
 
-WebInterface::WebInterface(WaveformGenerator& wave, AlarmManager& alarm,
+WebInterface::WebInterface(WaveformGenerator& wave,
                            DeviceState& dev, ConfigStorage& stor, ShdlcSensorInterface& sens)
-  : server(80), events("/events"), waveform(wave), alarms(alarm),
+  : server(80), events("/events"), waveform(wave),
     device(dev), storage(stor), sensor(sens), currentCO2Value(0), lastDataUpdate(0) {}
 
 void WebInterface::setUsbModeCallback(std::function<void(bool)> cb) {
@@ -56,13 +56,8 @@ void WebInterface::setupRoutes() {
   server.on("/api/settings", HTTP_GET, [this](AsyncWebServerRequest *request){
     StaticJsonDocument<512> doc;
     doc["amplitude"] = waveform.getAmplitude();
-    doc["frequency"] = waveform.getFrequency();
+    doc["frequency"] = waveform.getFrequency() * 60.0;
     doc["baseline"] = waveform.getBaseline();
-    doc["phase"] = waveform.getPhase() * 180.0 / PI;
-    doc["alarmHigh"] = alarms.getHighThreshold();
-    doc["alarmLow"] = alarms.getLowThreshold();
-    doc["alarmHighEnabled"] = alarms.isHighEnabled();
-    doc["alarmLowEnabled"] = alarms.isLowEnabled();
     doc["useCocoSensor"] = waveform.isUsingCocoSensor();
     doc["waveformType"] = (uint8_t)waveform.getWaveformType();
     doc["usbMode"] = device.isUsbProtocolMode() ? "protocol" : "debug";
@@ -81,13 +76,8 @@ void WebInterface::setupRoutes() {
     deserializeJson(doc, (const char*)data);
 
     if (doc.containsKey("amplitude")) waveform.setAmplitude(doc["amplitude"]);
-    if (doc.containsKey("frequency")) waveform.setFrequency(doc["frequency"]);
+    if (doc.containsKey("frequency")) waveform.setFrequency(doc["frequency"].as<float>() / 60.0);
     if (doc.containsKey("baseline")) waveform.setBaseline(doc["baseline"]);
-    if (doc.containsKey("phase")) waveform.setPhase(doc["phase"].as<float>() * PI / 180.0);
-    if (doc.containsKey("alarmHigh")) alarms.setHighThreshold(doc["alarmHigh"]);
-    if (doc.containsKey("alarmLow")) alarms.setLowThreshold(doc["alarmLow"]);
-    if (doc.containsKey("alarmHighEnabled")) alarms.enableHigh(doc["alarmHighEnabled"]);
-    if (doc.containsKey("alarmLowEnabled")) alarms.enableLow(doc["alarmLowEnabled"]);
     if (doc.containsKey("useCocoSensor")) waveform.setUseCocoSensor(doc["useCocoSensor"]);
     if (doc.containsKey("waveformType")) {
       uint8_t wt = doc["waveformType"];
@@ -111,11 +101,6 @@ void WebInterface::setupRoutes() {
     cfg.amplitude = waveform.getAmplitude();
     cfg.frequency = waveform.getFrequency();
     cfg.baseline = waveform.getBaseline();
-    cfg.phase = waveform.getPhase();
-    cfg.alarmHigh = alarms.getHighThreshold();
-    cfg.alarmLow = alarms.getLowThreshold();
-    cfg.alarmHighEnabled = alarms.isHighEnabled();
-    cfg.alarmLowEnabled = alarms.isLowEnabled();
     cfg.useCocoSensor = waveform.isUsingCocoSensor();
     cfg.waveformType = (uint8_t)waveform.getWaveformType();
     storage.saveConfig(cfg);
@@ -126,7 +111,6 @@ void WebInterface::setupRoutes() {
   server.on("/api/load", HTTP_POST, [this](AsyncWebServerRequest *request){
     ConfigStorage::Config cfg = storage.loadConfig();
     waveform.loadFromConfig(cfg);
-    alarms.loadFromConfig(cfg);
 
     request->send(200, "application/json", "{\"status\":\"loaded\"}");
   });
@@ -149,9 +133,6 @@ void WebInterface::update() {
     doc["usbMode"] = device.isUsbProtocolMode() ? "protocol" : "debug";
     doc["waveformType"] = (uint8_t)waveform.getWaveformType();
     doc["sensorAvailable"] = sensor.isAvailable();
-
-    uint8_t status = 0;
-    doc["alarm"] = alarms.checkAlarms(currentCO2Value, status);
 
     String data;
     serializeJson(doc, data);
@@ -180,8 +161,6 @@ button.secondary{background:#5f6368}button.secondary:hover{background:#4d5156}
 .status-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600}
 .status-badge.active{background:#e6f4ea;color:#137333}.status-badge.inactive{background:#fce8e6;color:#c5221f}
 .status-badge.protocol{background:#e8f0fe;color:#1967d2}
-.alarm{background:#fef7e0;padding:15px;margin:10px 0;border-left:4px solid #f9ab00;border-radius:4px;display:none}
-.alarm.show{display:block}
 .info-row{display:flex;gap:20px;margin-top:10px;flex-wrap:wrap}.info-item{flex:1;min-width:150px}
 .info-label{font-size:12px;color:#5f6368;margin-bottom:4px}.info-value{font-size:24px;font-weight:600;color:#1a73e8}
 .hint{color:#5f6368;font-size:12px;margin-top:8px}
@@ -194,7 +173,7 @@ button.secondary{background:#5f6368}button.secondary:hover{background:#4d5156}
 <div class="info-item"><div class="info-label">Current CO2</div><div class="info-value"><span id="currentCO2">--</span> <span style="font-size:14px">mmHg</span></div></div>
 <div class="info-item"><div class="info-label">Respiratory Rate</div><div class="info-value"><span id="respRate">--</span> <span style="font-size:14px">br/min</span></div></div>
 <div class="info-item"><div class="info-label">Mode</div><div class="info-value" style="font-size:18px"><span class="status-badge" id="modeBadge">IDLE</span></div></div>
-</div><div id="alarmStatus" class="alarm"><strong>ALARM:</strong> CO2 out of range!</div></div>
+</div></div>
 
 <div class="card"><h2>USB Port Mode</h2>
 <div class="control-group"><label>USB Mode:</label>
@@ -227,19 +206,10 @@ button.secondary{background:#5f6368}button.secondary:hover{background:#4d5156}
 </select></div>
 <div class="control-group"><label>Amplitude (mmHg):</label>
 <input type="range" id="amp" min="0" max="100" step="1" value="38"><span class="value-display" id="ampVal">38</span></div>
-<div class="control-group"><label>Frequency (Hz):</label>
-<input type="range" id="freq" min="0.1" max="1.0" step="0.05" value="0.25"><span class="value-display" id="freqVal">0.25</span></div>
+<div class="control-group"><label>Resp Rate (br/min):</label>
+<input type="range" id="freq" min="5" max="90" step="1" value="15"><span class="value-display" id="freqVal">15</span></div>
 <div class="control-group"><label>Baseline (mmHg):</label>
 <input type="range" id="base" min="-10" max="50" step="1" value="0"><span class="value-display" id="baseVal">0</span></div>
-<div class="control-group"><label>Phase (degrees):</label>
-<input type="range" id="phase" min="0" max="360" step="10" value="0"><span class="value-display" id="phaseVal">0</span></div>
-<button onclick="updateSettings()">Apply Changes</button></div>
-
-<div class="card"><h2>Alarm Settings</h2>
-<div class="control-group"><label>High Alarm (mmHg):</label>
-<input type="number" id="alarmHigh" value="50" step="1" style="width:100px"><input type="checkbox" id="alarmHighEn" style="margin-left:10px"> Enable</div>
-<div class="control-group"><label>Low Alarm (mmHg):</label>
-<input type="number" id="alarmLow" value="30" step="1" style="width:100px"><input type="checkbox" id="alarmLowEn" style="margin-left:10px"> Enable</div>
 <button onclick="updateSettings()">Apply Changes</button></div>
 
 <div class="card"><h2>Configuration</h2>
@@ -270,8 +240,6 @@ function updateDisplay(data){
   else{sensorBadge.textContent='Not Found';sensorBadge.className='status-badge inactive';}
 
   waveformData.push(data.co2);if(waveformData.length>maxPoints)waveformData.shift();drawWaveform();
-  let alarmDiv=document.getElementById('alarmStatus');
-  if(data.alarm){alarmDiv.classList.add('show');}else{alarmDiv.classList.remove('show');}
 }
 
 function drawWaveform(){ctx.fillStyle='#fafafa';ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -282,7 +250,7 @@ for(let i=0;i<waveformData.length;i++){let x=i;
 let y=canvas.height-(waveformData[i]-minVal)/(maxVal-minVal)*canvas.height;
 if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
 
-['amp','freq','base','phase'].forEach(id=>{document.getElementById(id).addEventListener('input',function(){
+['amp','freq','base'].forEach(id=>{document.getElementById(id).addEventListener('input',function(){
 document.getElementById(id+'Val').textContent=this.value;});});
 
 function updateSettings(){
@@ -290,11 +258,6 @@ function updateSettings(){
     amplitude:parseFloat(document.getElementById('amp').value),
     frequency:parseFloat(document.getElementById('freq').value),
     baseline:parseFloat(document.getElementById('base').value),
-    phase:parseFloat(document.getElementById('phase').value),
-    alarmHigh:parseFloat(document.getElementById('alarmHigh').value),
-    alarmLow:parseFloat(document.getElementById('alarmLow').value),
-    alarmHighEnabled:document.getElementById('alarmHighEn').checked,
-    alarmLowEnabled:document.getElementById('alarmLowEn').checked,
     useCocoSensor:document.getElementById('co2Source').value==='coco',
     waveformType:parseInt(document.getElementById('waveformType').value)
   };
@@ -325,12 +288,6 @@ fetch('/api/settings').then(r=>r.json()).then(data=>{
   document.getElementById('freqVal').textContent=data.frequency;
   document.getElementById('base').value=data.baseline;
   document.getElementById('baseVal').textContent=data.baseline;
-  document.getElementById('phase').value=data.phase;
-  document.getElementById('phaseVal').textContent=data.phase;
-  document.getElementById('alarmHigh').value=data.alarmHigh;
-  document.getElementById('alarmLow').value=data.alarmLow;
-  document.getElementById('alarmHighEn').checked=data.alarmHighEnabled;
-  document.getElementById('alarmLowEn').checked=data.alarmLowEnabled;
   document.getElementById('co2Source').value=data.useCocoSensor?'coco':'sim';
   document.getElementById('waveformType').value=data.waveformType;
   document.getElementById('usbMode').value=data.usbMode;

@@ -10,11 +10,6 @@ public:
     float amplitude;
     float frequency;
     float baseline;
-    float phase;
-    float alarmHigh;
-    float alarmLow;
-    bool alarmHighEnabled;
-    bool alarmLowEnabled;
     bool useCocoSensor;
     uint8_t waveformType;  // 0 = SINE, 1 = CAPNOGRAM
   };

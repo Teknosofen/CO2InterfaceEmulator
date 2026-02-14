@@ -4,14 +4,12 @@
 #include <Arduino.h>
 #include <functional>
 #include "WaveformGenerator.h"
-#include "AlarmManager.h"
 #include "DeviceState.h"
 #include "ConfigStorage.h"
 
 class CommandLineInterface {
 private:
   WaveformGenerator& waveform;
-  AlarmManager& alarms;
   DeviceState& device;
   ConfigStorage& storage;
   Stream& serial;
@@ -23,7 +21,7 @@ private:
   void processLine(String line);
 
 public:
-  CommandLineInterface(WaveformGenerator& wave, AlarmManager& alarm,
+  CommandLineInterface(WaveformGenerator& wave,
                        DeviceState& dev, ConfigStorage& stor, Stream& ser);
 
   void setUsbModeCallback(std::function<void(bool)> cb);

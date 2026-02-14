@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include "DeviceState.h"
 #include "WaveformGenerator.h"
-#include "AlarmManager.h"
 #include "PacketBuilder.h"
 #include "Config.h"
 
@@ -12,7 +11,6 @@ class ProtocolHandler {
 private:
   DeviceState& device;
   WaveformGenerator& waveform;
-  AlarmManager& alarms;
 
   static const uint8_t MAX_OUTPUTS = 2;
   Stream* outputs[MAX_OUTPUTS];
@@ -28,7 +26,7 @@ private:
 
 public:
   ProtocolHandler(DeviceState& dev, WaveformGenerator& wave,
-                  AlarmManager& alarm, Stream& primaryOutput);
+                  Stream& primaryOutput);
 
   void addOutput(Stream& output);
   void removeOutput(Stream& output);

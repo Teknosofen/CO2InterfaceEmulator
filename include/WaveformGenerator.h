@@ -16,7 +16,6 @@ private:
   float amplitude;
   float frequency;
   float baseline;
-  float phase;
   ShdlcSensorInterface* cocoSensor;
   bool useCocoSensor;
   WaveformType waveformType;
@@ -36,12 +35,10 @@ public:
   void setAmplitude(float amp);
   void setFrequency(float freq);
   void setBaseline(float base);
-  void setPhase(float phaseRadians);
 
   float getAmplitude() const;
   float getFrequency() const;
   float getBaseline() const;
-  float getPhase() const;
 
   float getSample();
   uint16_t getRespiratoryRate() const;

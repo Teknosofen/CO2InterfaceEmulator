@@ -1,7 +1,7 @@
 #include "WaveformGenerator.h"
 
 WaveformGenerator::WaveformGenerator()
-  : amplitude(38.0), frequency(0.25), baseline(0.0), phase(0.0),
+  : amplitude(38.0), frequency(0.25), baseline(0.0),
     cocoSensor(nullptr), useCocoSensor(false), waveformType(WaveformType::SINE) {}
 
 void WaveformGenerator::setCocoSensor(ShdlcSensorInterface* sensor) {
@@ -25,12 +25,10 @@ WaveformGenerator::WaveformType WaveformGenerator::getWaveformType() const { ret
 void WaveformGenerator::setAmplitude(float amp) { amplitude = amp; }
 void WaveformGenerator::setFrequency(float freq) { frequency = freq; }
 void WaveformGenerator::setBaseline(float base) { baseline = base; }
-void WaveformGenerator::setPhase(float phaseRadians) { phase = phaseRadians; }
 
 float WaveformGenerator::getAmplitude() const { return amplitude; }
 float WaveformGenerator::getFrequency() const { return frequency; }
 float WaveformGenerator::getBaseline() const { return baseline; }
-float WaveformGenerator::getPhase() const { return phase; }
 
 float WaveformGenerator::generateCapnogramSample(float breathPhase) {
   float etco2 = amplitude;
@@ -71,12 +69,12 @@ float WaveformGenerator::getSample() {
 
   if (waveformType == WaveformType::CAPNOGRAM) {
     float period = 1.0f / frequency;
-    float breathPhase = fmod(time + phase / (2.0f * PI) * period, period) / period;
+    float breathPhase = fmod(time, period) / period;
     return max(0.0f, generateCapnogramSample(breathPhase));
   }
 
   // Default: sine wave
-  float value = baseline + amplitude * sin(2.0 * PI * frequency * time + phase);
+  float value = baseline + amplitude * sin(2.0 * PI * frequency * time);
   return max(0.0f, value);
 }
 
@@ -92,7 +90,6 @@ void WaveformGenerator::loadFromConfig(const ConfigStorage::Config& cfg) {
   amplitude = cfg.amplitude;
   frequency = cfg.frequency;
   baseline = cfg.baseline;
-  phase = cfg.phase;
   useCocoSensor = cfg.useCocoSensor;
   waveformType = static_cast<WaveformType>(cfg.waveformType);
 }

@@ -5,7 +5,6 @@
 #include "ShdlcSensorInterface.h"
 #include "ConfigStorage.h"
 #include "WaveformGenerator.h"
-#include "AlarmManager.h"
 #include "DeviceState.h"
 #include "ProtocolHandler.h"
 #include "ProtocolReceiver.h"
@@ -19,7 +18,6 @@ private:
   ShdlcSensorInterface cocoSensor;
   ConfigStorage storage;
   WaveformGenerator waveform;
-  AlarmManager alarms;
   DeviceState device;
   ProtocolHandler protocol;
   ProtocolReceiver receiver;

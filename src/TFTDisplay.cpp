@@ -1,182 +1,203 @@
 #include "TFTDisplay.h"
 
-TFTDisplay::TFTDisplay(WaveformGenerator& wave, AlarmManager& alarm, DeviceState& dev)
-  : waveform(wave), alarms(alarm), device(dev), writeX(0), lastUpdate(0),
-    prevContinuousMode(false), prevCO2(-1), prevRate(0xFFFF), prevAlarm(false),
-    statusDrawn(false) {
+// GFX Free Font references
+#define FONT_TITLE  &FreeSansBold9pt7b
+#define FONT_LABEL  &FreeSans9pt7b
+#define FONT_VALUE  &FreeSansBold12pt7b
+#define FONT_BIG    &FreeSansBold18pt7b
+#define FONT_SMALL  &FreeSans9pt7b
+
+TFTDisplay::TFTDisplay(WaveformGenerator& wave, DeviceState& dev)
+  : waveform(wave), device(dev), writeX(0), lastUpdate(0),
+    prevContinuousMode(false), prevUsbProtocol(false),
+    prevCO2(-1), prevRate(0xFFFF),
+    statusDrawn(false), paramsDrawn(false) {
   for (int i = 0; i < WAVE_WIDTH; i++) {
-    waveY[i] = WAVE_TOP + WAVE_HEIGHT; // bottom (0 mmHg)
-    prevWaveY[i] = WAVE_TOP + WAVE_HEIGHT;
+    waveY[i] = WAVE_TOP + WAVE_HEIGHT - 1;
   }
 }
 
 void TFTDisplay::begin() {
   tft.init();
-  tft.setRotation(0);  // Portrait mode
-  tft.fillScreen(TFT_BLACK);
+  tft.setRotation(1);  // Landscape: 320 x 170
+  tft.fillScreen(CLR_BACKGROUND);
 
-  // Set backlight (GPIO 38)
+  // Backlight on (GPIO 38)
   pinMode(38, OUTPUT);
   digitalWrite(38, HIGH);
 
-  drawGrid();
+  drawStaticFrame();
 }
 
 int16_t TFTDisplay::co2ToY(float co2) {
-  // Map 0..100 mmHg to pixel range WAVE_TOP+WAVE_HEIGHT..WAVE_TOP
-  int16_t y = WAVE_TOP + WAVE_HEIGHT - (int16_t)(co2 / 100.0f * WAVE_HEIGHT);
-  return constrain(y, WAVE_TOP, WAVE_TOP + WAVE_HEIGHT);
+  int16_t y = WAVE_TOP + WAVE_HEIGHT - 1 - (int16_t)(co2 / 50.0f * (WAVE_HEIGHT - 2));
+  return constrain(y, WAVE_TOP + 1, WAVE_TOP + WAVE_HEIGHT - 1);
 }
 
-void TFTDisplay::drawGrid() {
-  // Horizontal grid lines at 25, 50, 75 mmHg
-  int16_t gridColor = tft.color565(40, 40, 40);
-  for (int mmHg = 25; mmHg < 100; mmHg += 25) {
-    int16_t y = co2ToY(mmHg);
-    tft.drawFastHLine(0, y, WAVE_WIDTH, gridColor);
+void TFTDisplay::drawStaticFrame() {
+  // Status bar background
+  tft.fillRect(0, 0, SCREEN_W, STATUS_H, CLR_DEEPBLUE);
+
+  // Title
+  tft.setFreeFont(FONT_TITLE);
+  tft.setTextColor(CLR_BACKGROUND, CLR_DEEPBLUE);
+  tft.setTextDatum(ML_DATUM);
+  tft.drawString("CO2 EMULATOR", 8, STATUS_H / 2);
+
+  // Waveform area border
+  tft.drawRect(WAVE_LEFT, WAVE_TOP, WAVE_WIDTH, WAVE_HEIGHT, CLR_DARKERBLUE);
+
+  // Dotted grid lines inside waveform area
+  for (int mmHg = 10; mmHg < 50; mmHg += 10) {
+    int16_t y = co2ToY((float)mmHg);
+    for (int16_t x = WAVE_LEFT + 1; x < WAVE_LEFT + WAVE_WIDTH - 1; x += 4) {
+      tft.drawPixel(x, y, CLR_MIDNIGHTBLUE);
+    }
   }
-  // Scale labels
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-  tft.setCursor(2, WAVE_TOP + 3);
-  tft.print("100");
-  tft.setCursor(2, WAVE_TOP + WAVE_HEIGHT - 10);
-  tft.print("0");
+
+  // Scale labels on waveform
+  tft.setFreeFont(FONT_SMALL);
+  tft.setTextColor(CLR_SLATEBLUE, CLR_BACKGROUND);
+  tft.setTextDatum(TL_DATUM);
+  tft.drawString("50", WAVE_LEFT + 3, WAVE_TOP + 3);
+  tft.setTextDatum(BL_DATUM);
+  tft.drawString("0", WAVE_LEFT + 3, WAVE_TOP + WAVE_HEIGHT - 3);
+
+  // Vertical separator between waveform and parameters
+  tft.drawFastVLine(PARAM_LEFT - 1, WAVE_TOP, WAVE_HEIGHT, CLR_DARKERBLUE);
+
+  // Parameter panel static labels
+  tft.setFreeFont(FONT_LABEL);
+  tft.setTextColor(CLR_SLATEBLUE, CLR_BACKGROUND);
+  tft.setTextDatum(TL_DATUM);
+  tft.drawString("CO2", PARAM_LEFT + 4, WAVE_TOP + 4);
+  tft.drawString("mmHg", PARAM_LEFT + 4, WAVE_TOP + 62);
+  tft.drawString("RR", PARAM_LEFT + 4, WAVE_TOP + 88);
+
+  statusDrawn = false;
+  paramsDrawn = false;
 }
 
 void TFTDisplay::drawStatusBar() {
   bool continuous = device.isContinuousMode();
+  bool usbProto = device.isUsbProtocolMode();
 
-  // Only redraw if state changed or first draw
-  if (statusDrawn && continuous == prevContinuousMode) return;
+  if (statusDrawn && continuous == prevContinuousMode && usbProto == prevUsbProtocol) return;
 
-  tft.fillRect(0, 0, 170, WAVE_TOP, TFT_NAVY);
-  tft.setTextColor(TFT_WHITE, TFT_NAVY);
-  tft.setTextSize(2);
-  tft.setCursor(10, 10);
-  tft.print("CO2 EMU");
+  // Clear badge area on the right side of the status bar
+  int16_t badgeX = 200;
+  tft.fillRect(badgeX, 2, SCREEN_W - badgeX - 2, STATUS_H - 4, CLR_DEEPBLUE);
 
-  tft.setTextSize(1);
-  tft.setCursor(120, 15);
+  tft.setFreeFont(FONT_SMALL);
+  tft.setTextDatum(MR_DATUM);
+
+  // Streaming mode badge
   if (continuous) {
-    tft.setTextColor(TFT_GREEN, TFT_NAVY);
-    tft.print("RUN ");
+    tft.setTextColor(CLR_GREENISH, CLR_DEEPBLUE);
+    tft.drawString("RUN", SCREEN_W - 8, STATUS_H / 2);
   } else {
-    tft.setTextColor(TFT_YELLOW, TFT_NAVY);
-    tft.print("IDLE");
+    tft.setTextColor(CLR_REDDISH, CLR_DEEPBLUE);
+    tft.drawString("IDLE", SCREEN_W - 8, STATUS_H / 2);
+  }
+
+  // USB mode badge
+  if (usbProto) {
+    tft.setTextColor(CLR_LOGOBLUE, CLR_DEEPBLUE);
+    tft.drawString("PROTO", SCREEN_W - 50, STATUS_H / 2);
+  } else {
+    tft.setTextColor(CLR_SLATEBLUE, CLR_DEEPBLUE);
+    tft.drawString("DEBUG", SCREEN_W - 50, STATUS_H / 2);
   }
 
   prevContinuousMode = continuous;
+  prevUsbProtocol = usbProto;
   statusDrawn = true;
 }
 
-void TFTDisplay::drawParameterArea() {
+void TFTDisplay::drawParamPanel() {
   float co2 = waveform.getSample();
   uint16_t rate = waveform.getRespiratoryRate();
-  uint8_t status = 0;
-  bool alarm = alarms.checkAlarms(co2, status);
 
-  // Round to 1 decimal to avoid redrawing on tiny float changes
   float co2Rounded = ((int)(co2 * 10.0f)) / 10.0f;
-
   bool co2Changed = (co2Rounded != prevCO2);
   bool rateChanged = (rate != prevRate);
-  bool alarmChanged = (alarm != prevAlarm);
 
-  // CO2 value — only redraw if changed
-  if (co2Changed || alarmChanged) {
-    tft.setTextSize(3);
-    if (alarm) {
-      tft.setTextColor(TFT_RED, TFT_BLACK);
-    } else {
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    }
-    tft.setCursor(10, 265);
-    // Fixed-width format to overwrite previous digits with background color
-    tft.printf("%-6.1f", co2Rounded);
+  if (!paramsDrawn) {
+    co2Changed = rateChanged = true;
+  }
 
-    // "mmHg" label (only needs drawing once, but it's cheap)
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setCursor(100, 275);
-    tft.print("mmHg");
+  // CO2 value — large font, only update when changed
+  if (co2Changed) {
+    // Clear the value area
+    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + 20, PARAM_WIDTH - 4, 40, CLR_BACKGROUND);
+
+    tft.setFreeFont(FONT_BIG);
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(CLR_GREENISH, CLR_BACKGROUND);
+
+    char buf[8];
+    dtostrf(co2Rounded, 4, 1, buf);
+    tft.drawString(buf, PARAM_LEFT + 4, WAVE_TOP + 24);
 
     prevCO2 = co2Rounded;
   }
 
-  // Respiratory rate — only redraw if changed
+  // Respiratory rate
   if (rateChanged) {
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_CYAN, TFT_BLACK);
-    tft.setCursor(10, 295);
-    // Fixed-width format to overwrite old text
-    tft.printf("%-4d bpm", rate);
+    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + 104, PARAM_WIDTH - 4, 28, CLR_BACKGROUND);
+
+    tft.setFreeFont(FONT_VALUE);
+    tft.setTextColor(CLR_LOGOBLUE, CLR_BACKGROUND);
+    tft.setTextDatum(TL_DATUM);
+
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%d bpm", rate);
+    tft.drawString(buf, PARAM_LEFT + 4, WAVE_TOP + 110);
 
     prevRate = rate;
   }
 
-  // Alarm indicator — only redraw if changed
-  if (alarmChanged) {
-    if (alarm) {
-      tft.fillCircle(155, 275, 8, TFT_RED);
-    } else {
-      tft.fillCircle(155, 275, 8, TFT_BLACK);
-    }
-    prevAlarm = alarm;
-  }
+  paramsDrawn = true;
 }
 
 void TFTDisplay::drawWaveformStep() {
   float co2 = waveform.getSample();
   int16_t newY = co2ToY(co2);
 
-  // The column we're about to overwrite
-  uint8_t x = writeX;
-  uint8_t prevX = (x == 0) ? WAVE_WIDTH - 1 : x - 1;
+  uint16_t x = writeX;
+  uint16_t prevX = (x == 0) ? (WAVE_WIDTH - 3) : (x - 1);
 
-  // Erase the old line segment AT this column (old data being scrolled out)
-  // We erase the segment from prevWaveY[prevX] to prevWaveY[x]
-  if (prevWaveY[x] != prevWaveY[prevX]) {
-    tft.drawLine(prevX, prevWaveY[prevX], x, prevWaveY[x], TFT_BLACK);
+  // Clear a sweep gap 4 columns ahead of the write position
+  for (int g = 1; g <= 4; g++) {
+    int16_t cx = WAVE_LEFT + 1 + ((x + g) % (WAVE_WIDTH - 2));
+    tft.drawFastVLine(cx, WAVE_TOP + 1, WAVE_HEIGHT - 2, CLR_BACKGROUND);
+  }
+
+  // Repair dotted grid lines at the cleared columns
+  for (int g = 1; g <= 4; g++) {
+    int16_t cx = WAVE_LEFT + 1 + ((x + g) % (WAVE_WIDTH - 2));
+    for (int mmHg = 10; mmHg < 50; mmHg += 10) {
+      if (cx % 4 == 0) {
+        tft.drawPixel(cx, co2ToY((float)mmHg), CLR_MIDNIGHTBLUE);
+      }
+    }
+  }
+
+  // Draw waveform line from previous point to this point (2px thick for visibility)
+  int16_t nx = WAVE_LEFT + 1 + x;
+  if (x == 0) {
+    // Wrap point: no line from far right, just plot the new point
+    tft.drawPixel(nx, newY, CLR_GREENISH);
+    tft.drawPixel(nx, newY + 1, CLR_GREENISH);
   } else {
-    tft.drawPixel(x, prevWaveY[x], TFT_BLACK);
+    int16_t px = WAVE_LEFT + 1 + prevX;
+    int16_t py = waveY[prevX];
+    tft.drawLine(px, py, nx, newY, CLR_GREENISH);
+    tft.drawLine(px, py + 1, nx, newY + 1, CLR_GREENISH);
   }
 
-  // Also erase the segment going FORWARD from this column (the next old segment)
-  uint8_t nextX = (x + 1) % WAVE_WIDTH;
-  if (prevWaveY[nextX] != prevWaveY[x]) {
-    tft.drawLine(x, prevWaveY[x], nextX, prevWaveY[nextX], TFT_BLACK);
-  }
-
-  // Repair grid lines that may have been erased
-  int16_t gridColor = tft.color565(40, 40, 40);
-  for (int mmHg = 25; mmHg < 100; mmHg += 25) {
-    int16_t gy = co2ToY(mmHg);
-    // Redraw grid pixels in the columns we touched
-    tft.drawPixel(x, gy, gridColor);
-    if (x > 0) tft.drawPixel(prevX, gy, gridColor);
-    tft.drawPixel(nextX, gy, gridColor);
-  }
-
-  // Store the new Y value
   waveY[x] = newY;
-
-  // Draw the new line segment from previous column to this column
-  int16_t fromY = waveY[prevX];
-  tft.drawLine(prevX, fromY, x, newY, TFT_CYAN);
-
-  // Draw a cursor/gap marker: erase a small column ahead so trace appears to scroll
-  uint8_t gapX = (x + 2) % WAVE_WIDTH;
-  tft.drawFastVLine(gapX, WAVE_TOP + 1, WAVE_HEIGHT - 1, TFT_BLACK);
-  // Repair grid at gap column
-  for (int mmHg = 25; mmHg < 100; mmHg += 25) {
-    tft.drawPixel(gapX, co2ToY(mmHg), gridColor);
-  }
-
-  // Shift previous buffer: current becomes previous for next erase cycle
-  prevWaveY[x] = newY;
-
-  writeX = (x + 1) % WAVE_WIDTH;
+  writeX = (x + 1) % (WAVE_WIDTH - 2);
 }
 
 void TFTDisplay::update() {
@@ -185,23 +206,26 @@ void TFTDisplay::update() {
 
   drawStatusBar();
   drawWaveformStep();
-  drawParameterArea();
+  drawParamPanel();
 }
 
 void TFTDisplay::clear() {
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(CLR_BACKGROUND);
+  for (int i = 0; i < WAVE_WIDTH; i++) {
+    waveY[i] = WAVE_TOP + WAVE_HEIGHT - 1;
+  }
+  writeX = 0;
   statusDrawn = false;
+  paramsDrawn = false;
   prevCO2 = -1;
   prevRate = 0xFFFF;
-  prevAlarm = false;
+  drawStaticFrame();
 }
 
 void TFTDisplay::showMessage(const char* msg) {
-  tft.fillRect(0, 100, 170, 60, TFT_NAVY);
-  tft.setTextColor(TFT_WHITE, TFT_NAVY);
-  tft.setTextSize(2);
-
-  int16_t x = (170 - strlen(msg) * 12) / 2;
-  tft.setCursor(x, 120);
-  tft.print(msg);
+  tft.fillRect(60, 60, 200, 50, CLR_DEEPBLUE);
+  tft.setFreeFont(FONT_VALUE);
+  tft.setTextColor(CLR_BACKGROUND, CLR_DEEPBLUE);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString(msg, SCREEN_W / 2, 85);
 }

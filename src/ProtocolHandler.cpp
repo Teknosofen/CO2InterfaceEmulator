@@ -1,8 +1,8 @@
 #include "ProtocolHandler.h"
 
 ProtocolHandler::ProtocolHandler(DeviceState& dev, WaveformGenerator& wave,
-                                 AlarmManager& alarm, Stream& primaryOutput)
-  : device(dev), waveform(wave), alarms(alarm), outputCount(1) {
+                                 Stream& primaryOutput)
+  : device(dev), waveform(wave), outputCount(1) {
   outputs[0] = &primaryOutput;
   for (uint8_t i = 1; i < MAX_OUTPUTS; i++) outputs[i] = nullptr;
 }
@@ -138,9 +138,6 @@ void ProtocolHandler::sendWaveformPacket(bool includeDPI, uint8_t dpiType) {
   packet.addByte(device.getAndIncrementSync());
 
   float co2Value = waveform.getSample();
-  uint8_t status = device.getStatusByte1();
-  alarms.checkAlarms(co2Value, status);
-  device.setStatusByte1(status);
 
   packet.addCO2Waveform(co2Value);
 

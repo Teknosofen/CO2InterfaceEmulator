@@ -4,22 +4,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ESP32](https://img.shields.io/badge/ESP32-S3-blue)](https://www.espressif.com/en/products/socs/esp32-s3)
 
-Full-featured CO2 sensor emulator implementing the **Capnostat 5** serial protocol for ESP32, with built-in TFT display, web interface, and EEPROM storage.
+Full-featured CO2 sensor emulator implementing the **Capnostat 5** serial protocol for ESP32-S3, with built-in TFT display, web interface, and EEPROM storage.
 
-![CO2 Emulator Display](docs/images/display-preview.jpg)
+## Features
 
-## ✨ Features
+- **Real-time Waveform Generation** - Sine wave or realistic capnogram simulation (amplitude, frequency, baseline)
+- **Built-in TFT Display** - Live sweep-style waveform visualization on LilyGo T-Display S3
+- **Web Interface** - Full control via browser (WiFi AP mode, no internet needed)
+- **EEPROM Storage** - Save/load configurations persistently
+- **CoCo Sensor Support** - Sensirion CoCo CO2 sensor integration via SHDLC/UART
+- **Capnostat 5 Protocol** - Full implementation at 19200 baud, 100Hz waveform transmission
+- **Serial CLI** - ASCII command interface for configuration
+- **USB Dual-Mode** - Debug CLI or protocol mirror, switchable at runtime
 
-- 🌊 **Real-time Waveform Generation** - Adjustable sine wave simulation (amplitude, frequency, baseline, phase)
-- 📺 **Built-in TFT Display** - Live waveform visualization on LilyGo T-Display S3
-- 🌐 **Web Interface** - Control via browser (works as WiFi AP, no internet needed)
-- 💾 **EEPROM Storage** - Save/load configurations
-- 🚨 **Alarm System** - Configurable high/low thresholds with visual indicators
-- 🔌 **I2C Sensor Support** - Template for real CO2 sensor integration
-- 📡 **Capnostat 5 Protocol** - Full implementation at 19200 baud, 100Hz waveform transmission
-- 💬 **Serial CLI** - ASCII command interface for configuration
-
-## 🎯 Use Cases
+## Use Cases
 
 - Medical device development and testing
 - Capnostat 5 protocol validation
@@ -27,18 +25,16 @@ Full-featured CO2 sensor emulator implementing the **Capnostat 5** serial protoc
 - Educational demonstrations
 - Protocol analyzer testing
 
-## 🛠️ Hardware Requirements
+## Hardware Requirements
 
 ### Supported Boards
 - **LilyGo T-Display S3** (recommended, includes display)
-- Generic ESP32-S3
-- ESP32 DevKit (modify pins in Config.h)
 
 ### Optional
-- I2C CO2 Sensor (SCD30, SCD41, etc.)
+- Sensirion CoCo CO2 sensor (SHDLC/UART, connected via Serial2)
 - External host device for protocol communication
 
-## 📋 Quick Start
+## Quick Start
 
 ### 1. Clone Repository
 
@@ -57,7 +53,7 @@ pip install platformio
 
 ### 3. Configure WiFi (Optional)
 
-Edit `src/Config.h`:
+Edit `include/Config.h`:
 
 ```cpp
 // Access Point mode (default - no internet needed)
@@ -82,188 +78,142 @@ pio device monitor
 
 **TFT Display**: Built-in screen shows waveform immediately
 
-**Web Interface**: 
-- AP Mode: Connect to "CO2-Emulator" WiFi → http://192.168.4.1
+**Web Interface**:
+- AP Mode: Connect to "CO2-Emulator" WiFi, open http://192.168.4.1
 - Station Mode: Check serial monitor for IP address
 
 **Serial CLI**: Connect at 115200 baud, type `help`
 
-## 📺 TFT Display
+## TFT Display
 
-The built-in display shows:
-- Real-time CO2 waveform (cyan trace)
+The built-in display shows (landscape, 320x170):
+- Sweep-style CO2 waveform trace (0-50 mmHg scale)
 - Current CO2 value (mmHg)
 - Respiratory rate (breaths/min)
-- Mode indicator (RUN/IDLE)
-- Alarm status (red indicator)
+- Mode badges (RUN/IDLE, DEBUG/PROTO)
 
-![Display Layout](docs/images/display-layout.png)
-
-## 🌐 Web Interface
+## Web Interface
 
 Access full control panel via browser:
 
-![Web Interface](docs/images/web-interface.png)
-
 **Features**:
-- Live waveform visualization
-- Interactive parameter sliders
-- Alarm configuration
+- Live waveform visualization (canvas-based)
+- Interactive parameter sliders (amplitude, frequency, baseline)
+- Waveform type selection (sine / capnogram)
+- CoCo sensor toggle
+- USB mode switching (debug / protocol mirror)
+- Streaming start/stop control
 - Save/load settings to EEPROM
 - No internet required (all assets embedded)
 
-## 💻 Serial Commands
+## Serial Commands
 
 ```
-status          - Show current settings
-amp <value>     - Set amplitude (mmHg)
-freq <value>    - Set frequency (Hz)
-base <value>    - Set baseline (mmHg)
-phase <value>   - Set phase (degrees)
-high <value>    - Set high alarm threshold
-low <value>     - Set low alarm threshold
-highen <0/1>    - Enable/disable high alarm
-lowen <0/1>     - Enable/disable low alarm
-usei2c <0/1>    - Enable/disable I2C sensor
-save            - Save config to EEPROM
-load            - Load config from EEPROM
-ip              - Show IP address
-help            - Show all commands
+amp <value>      - Set amplitude (mmHg)
+freq <value>     - Set frequency (Hz)
+base <value>     - Set baseline (mmHg)
+wavetype <0/1>   - Set waveform type (0=sine, 1=capnogram)
+usecoco <0/1>    - Enable/disable CoCo sensor
+usbmode <0/1>    - Set USB mode (0=debug, 1=protocol)
+save             - Save config to EEPROM
+load             - Load config from EEPROM
+clear            - Clear saved config
+status           - Show current settings
+ip               - Show IP address
+help             - Show all commands
 ```
 
-## 📡 Protocol Implementation
+## Protocol Implementation
 
 Implements **Capnostat 5** serial protocol:
 - **Baud Rate**: 19200, 8N1
-- **Waveform Rate**: 100 Hz
-- **Commands**: Waveform mode, Zero, Settings, Revision, Capabilities
-- **Data Parameters**: ETCO2, Respiratory Rate, Inspired CO2, Status
-- **Checksums**: Full error detection
+- **Waveform Rate**: 100 Hz continuous
+- **Commands**: Start/stop waveform, zero calibration, get/set settings, revision, capabilities
+- **Data Parameters**: ETCO2, respiratory rate, inspired CO2, status
+- **Packet format**: CMD(1B) + NBF(1B) + data + 7-bit checksum
 
-### Example Protocol Exchange
+See [ProjectDesign.md](Documentation/ProjectDesign.md) for complete protocol specification including the Sensirion SHDLC interface.
 
-```
-Host → Device: 0x80 0x02 0x00 0x7E  (Start waveform mode)
-Device → Host: 0x80 0x05 0x00 0xXX 0xXX 0xXX  (Waveform packets at 100Hz)
-```
-
-See [PROTOCOL.md](docs/PROTOCOL.md) for complete specification.
-
-## 🔌 Hardware Connections
+## Hardware Connections
 
 ### LilyGo T-Display S3
 
 ```
-Protocol Serial (Serial1):
-├── TX: GPIO 43
-└── RX: GPIO 44
+Protocol Serial (Serial1):    19200 baud
+  TX: GPIO 43
+  RX: GPIO 44
+
+CoCo Sensor (Serial2):        115200 baud
+  TX: GPIO 17
+  RX: GPIO 18
 
 USB Serial (Commands):
-└── Built-in USB CDC
+  Built-in USB CDC             115200 baud
 
 TFT Display:
-└── Built-in ST7789 (170x320)
-
-Optional I2C Sensor:
-├── SDA: GPIO 18 (change from GPIO 43 to avoid conflict)
-└── SCL: GPIO 17 (change from GPIO 44 to avoid conflict)
+  Built-in ST7789 (170x320)
 ```
 
-### Generic ESP32
-
-Edit `src/Config.h` to match your pins:
-
-```cpp
-#define HOST_SERIAL Serial1
-#define I2C_SDA 21
-#define I2C_SCL 22
-```
-
-## 🧪 I2C Sensor Integration
-
-The project includes a template for real I2C CO2 sensors. To integrate your sensor:
-
-1. Edit `src/I2CSensorInterface.cpp`
-2. Modify `readSensorData()` method for your sensor protocol
-3. Example for SCD30:
-
-```cpp
-bool I2CSensorInterface::readSensorData(float& co2Value) {
-  Wire.beginTransmission(address);
-  Wire.write(0x02); Wire.write(0x02);  // Read measurement command
-  if (Wire.endTransmission() != 0) return false;
-  
-  delay(3);
-  
-  if (Wire.requestFrom(address, (uint8_t)18) != 18) return false;
-  
-  uint32_t co2Raw = (Wire.read() << 24) | (Wire.read() << 16) | 
-                    (Wire.read() << 8) | Wire.read();
-  memcpy(&co2Value, &co2Raw, 4);
-  
-  return true;
-}
-```
-
-4. Enable via serial: `usei2c 1`
-5. Or via web interface: Check "Use I2C Sensor"
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 CO2InterfaceEmulator/
-├── platformio.ini              # Build configuration
-├── README.md                   # This file
-├── LICENSE                     # MIT License
-├── docs/                       # Documentation
-│   ├── PROTOCOL.md            # Protocol specification
-│   ├── T-DISPLAY-S3.md        # Hardware guide
-│   └── images/                # Screenshots & diagrams
-└── src/                        # Source code
-    ├── main.cpp               # Entry point
-    ├── Config.h               # Configuration
-    ├── PacketBuilder.*        # Protocol packet builder
-    ├── I2CSensorInterface.*   # I2C sensor template
-    ├── ConfigStorage.*        # EEPROM persistence
-    ├── WaveformGenerator.*    # Waveform generation
-    ├── AlarmManager.*         # Alarm handling
-    ├── DeviceState.*          # Device state management
-    ├── ProtocolHandler.*      # Protocol command handler
-    ├── CommandLineInterface.* # Serial CLI
-    ├── ProtocolReceiver.*     # Serial packet receiver
-    ├── WebInterface.*         # Web UI (embedded HTML)
-    ├── TFTDisplay.*           # TFT display driver
-    └── CO2Emulator.*          # Main application
++-- platformio.ini              # Build configuration
++-- README.md                   # This file
++-- Documentation/
+|   +-- ProjectDesign.md        # Architecture & protocol specification
++-- include/                    # Header files
+|   +-- Config.h                # Pin mappings, baud rates, protocol constants
+|   +-- CO2Emulator.h           # Main application orchestrator
+|   +-- WaveformGenerator.h     # Waveform generation (sine/capnogram/sensor)
+|   +-- ShdlcSensorInterface.h  # Sensirion CoCo SHDLC driver
+|   +-- DeviceState.h           # Device state management
+|   +-- ConfigStorage.h         # EEPROM persistence
+|   +-- ProtocolHandler.h       # Capnostat 5 protocol handler
+|   +-- ProtocolReceiver.h      # Serial packet receiver/framer
+|   +-- PacketBuilder.h         # Packet construction + checksum
+|   +-- CommandLineInterface.h  # Serial CLI
+|   +-- WebInterface.h          # Web server + embedded HTML
+|   +-- TFTDisplay.h            # TFT display driver
++-- src/                        # Implementation files
+|   +-- main.cpp                # Entry point
+|   +-- CO2Emulator.cpp
+|   +-- WaveformGenerator.cpp
+|   +-- ShdlcSensorInterface.cpp
+|   +-- DeviceState.cpp
+|   +-- ConfigStorage.cpp
+|   +-- ProtocolHandler.cpp
+|   +-- ProtocolReceiver.cpp
+|   +-- PacketBuilder.cpp
+|   +-- CommandLineInterface.cpp
+|   +-- WebInterface.cpp
+|   +-- TFTDisplay.cpp
 ```
 
-## 🎨 Customization
+## Customization
 
 ### Change Default Waveform
 
 Edit `src/WaveformGenerator.cpp`:
 
 ```cpp
-WaveformGenerator::WaveformGenerator() 
-  : amplitude(45.0),    // Your value
-    frequency(0.3),     // Your value
-    baseline(5.0),      // Your value
-    phase(0.0) {}
+WaveformGenerator::WaveformGenerator()
+  : amplitude(38.0),    // EtCO2 peak (mmHg)
+    frequency(0.25),    // Breath rate (Hz, 0.25 = 15 bpm)
+    baseline(0.0),      // Inspiratory CO2 baseline
+    ...
 ```
 
 ### Modify Display Colors
 
-Edit `src/TFTDisplay.cpp`:
-
-```cpp
-tft.drawLine(i-1, y1, i, y2, TFT_GREEN);  // Change waveform color
-```
+Edit `include/TFTDisplay.h` color palette defines (`CLR_GREENISH`, etc.)
 
 ### Add Custom Protocol Commands
 
-1. Add command to `src/Config.h`
-2. Handle in `src/ProtocolHandler.cpp`
+1. Add command constant to `include/Config.h` (Protocol namespace)
+2. Handle in `src/ProtocolHandler.cpp` (`processCommand` switch)
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 **Display stays black**
 - Check TFT_eSPI library installed
@@ -278,49 +228,23 @@ tft.drawLine(i-1, y1, i, y2, TFT_GREEN);  // Change waveform color
 **Compilation errors**
 - Clean build: `pio run -t clean`
 - Update PlatformIO: `pio upgrade`
-- Check all files present (see docs/FILE_CHECKLIST.md)
 
 **Protocol not responding**
 - Check baud rate (19200)
-- Verify TX/RX connections
-- Send test command: `0x80 0x02 0x00 0x7E`
+- Verify TX/RX connections (GPIO 43/44)
+- Use `usbmode 1` to mirror protocol on USB for debugging
 
-## 📚 Documentation
-
-- [Protocol Specification](docs/PROTOCOL.md)
-- [Hardware Setup Guide](docs/T-DISPLAY-S3.md)
-- [File Structure](docs/FILE_CHECKLIST.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Based on Respironics Capnostat 5 protocol specification
 - Built with [PlatformIO](https://platformio.org/)
 - Display powered by [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)
 - Web server using [ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer)
 
-## 📧 Contact
+## License
 
-**Project**: [Teknosofen/CO2InterfaceEmulator](https://github.com/Teknosofen/CO2InterfaceEmulator)
-
-**Issues**: [GitHub Issues](https://github.com/Teknosofen/CO2InterfaceEmulator/issues)
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with ❤️ for medical device development**
+**Project**: [Teknosofen/CO2InterfaceEmulator](https://github.com/Teknosofen/CO2InterfaceEmulator)

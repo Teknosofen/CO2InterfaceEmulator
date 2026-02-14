@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell:*)",
+      "Bash(Select-String -Pattern '\\(error|warning\\(?!.*TOUCH_CS|.*DMA is not|.*TFT_CS|.*TFT_DC|.*TFT_RST\\)|SUCCESS|FAILED\\)')"
+    ]
+  }
+}

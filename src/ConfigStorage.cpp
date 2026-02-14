@@ -9,11 +9,6 @@ void ConfigStorage::saveConfig(const Config& cfg) {
   prefs.putFloat("amplitude", cfg.amplitude);
   prefs.putFloat("frequency", cfg.frequency);
   prefs.putFloat("baseline", cfg.baseline);
-  prefs.putFloat("phase", cfg.phase);
-  prefs.putFloat("alarmHigh", cfg.alarmHigh);
-  prefs.putFloat("alarmLow", cfg.alarmLow);
-  prefs.putBool("alarmHighEn", cfg.alarmHighEnabled);
-  prefs.putBool("alarmLowEn", cfg.alarmLowEnabled);
   prefs.putBool("useCoco", cfg.useCocoSensor);
   prefs.putUChar("waveType", cfg.waveformType);
 
@@ -25,11 +20,6 @@ ConfigStorage::Config ConfigStorage::loadConfig() {
   cfg.amplitude = prefs.getFloat("amplitude", 38.0);
   cfg.frequency = prefs.getFloat("frequency", 0.25);
   cfg.baseline = prefs.getFloat("baseline", 0.0);
-  cfg.phase = prefs.getFloat("phase", 0.0);
-  cfg.alarmHigh = prefs.getFloat("alarmHigh", 50.0);
-  cfg.alarmLow = prefs.getFloat("alarmLow", 30.0);
-  cfg.alarmHighEnabled = prefs.getBool("alarmHighEn", false);
-  cfg.alarmLowEnabled = prefs.getBool("alarmLowEn", false);
   cfg.useCocoSensor = prefs.getBool("useCoco", false);
   cfg.waveformType = prefs.getUChar("waveType", 0);
 
