@@ -170,6 +170,21 @@ Sent at 100 Hz during continuous mode:
 | Resp Rate | 3 | value(2B) | Respiratory rate (breaths/min, 2-byte encoded) |
 | Inspired CO2 | 4 | value(2B) | Inspired CO2 level (2-byte encoded) |
 
+### Timing and Throughput
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Waveform packet rate | 100 Hz (every 10 ms) | `WAVEFORM_INTERVAL = 10` in CO2Emulator.h |
+| DPI parameter interval | 1 s (every 1000 ms) | `PARAM_INTERVAL = 1000` in CO2Emulator.h |
+| DPI cycle | 4 types rotated: Status, ETCO2, RR, InspCO2 | One type per second |
+| Baud rate | 19200 baud, 8N1 (10 bits/byte) | Serial1 |
+
+**Typical packet sizes:**
+- Waveform only: 6 bytes (`CMD + NBF + sync + CO2_hi + CO2_lo + CHK`)
+- Waveform + DPI: 9–11 bytes (DPI type byte + 2–5 data bytes added)
+
+**Bus utilization:** ~100 packets/s × ~6 bytes = ~600 bytes/s sustained, ~6000 of 19200 bits/s (**~31% utilization**). DPI bursts add negligible overhead (1 larger packet per second).
+
 ### Settings ISB (Index Select Byte) Table
 
 | ISB | Setting | Data Format | Description |

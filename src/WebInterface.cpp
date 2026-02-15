@@ -126,6 +126,9 @@ void WebInterface::update() {
     lastDataUpdate = millis();
     currentCO2Value = waveform.getSample();
 
+    // Only build and send SSE data when clients are listening
+    if (events.count() == 0) return;
+
     StaticJsonDocument<256> doc;
     doc["co2"] = currentCO2Value;
     doc["rate"] = waveform.getRespiratoryRate();
