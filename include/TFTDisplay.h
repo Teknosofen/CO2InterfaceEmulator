@@ -38,6 +38,28 @@ private:
 
   static const int16_t PARAM_LEFT = 232;
   static const int16_t PARAM_WIDTH = SCREEN_W - PARAM_LEFT; // 88
+  static const int16_t PARAM_PAD = 9;       // horizontal content padding inside panel
+
+  // Parameter panel vertical layout (offsets from WAVE_TOP)
+  static const int16_t CO2_LABEL_Y = 4;     // "CO2" header
+  static const int16_t CO2_VALUE_Y = 24;    // large CO2 number
+  static const int16_t CO2_VALUE_H = 40;    // clear-rect height for CO2 value
+  static const int16_t CO2_UNIT_Y  = 60;    // "mmHg" unit text
+
+  static const int16_t RR_LABEL_Y  = 80;    // "RR" header
+  static const int16_t RR_VALUE_Y  = 100;   // respiratory rate number
+  static const int16_t RR_VALUE_H  = 28;    // clear-rect height for RR value
+  static const int16_t RR_UNIT_Y   = 130;   // "bpm" unit text
+
+  // Status bar layout
+  static const int16_t BADGE_AREA_X   = 200; // left edge of badge clear region
+  static const int16_t BADGE_MARGIN   = 8;   // right-edge margin for rightmost badge
+  static const int16_t BADGE_USB_OFS  = 50;  // USB badge offset from right edge
+
+  // Misc
+  static const int16_t SCALE_INSET = 3;     // scale label inset from waveform edge
+  static const int16_t TITLE_MARGIN = 8;    // title left margin in status bar
+  static const uint8_t TFT_BL_PIN = 38;     // backlight GPIO
 
   // Waveform circular buffer — Y pixel position per X column
   int16_t waveY[230];

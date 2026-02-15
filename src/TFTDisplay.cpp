@@ -22,9 +22,8 @@ void TFTDisplay::begin() {
   tft.setRotation(1);  // Landscape: 320 x 170
   tft.fillScreen(CLR_BACKGROUND);
 
-  // Backlight on (GPIO 38)
-  pinMode(38, OUTPUT);
-  digitalWrite(38, HIGH);
+  pinMode(TFT_BL_PIN, OUTPUT);
+  digitalWrite(TFT_BL_PIN, HIGH);
 
   drawStaticFrame();
 }
@@ -42,7 +41,7 @@ void TFTDisplay::drawStaticFrame() {
   tft.setFreeFont(FONT_TITLE);
   tft.setTextColor(CLR_BACKGROUND, CLR_DEEPBLUE);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("CO2 EMULATOR", 8, STATUS_H / 2);
+  tft.drawString("CO2 EMULATOR", TITLE_MARGIN, STATUS_H / 2);
 
   // Waveform area border
   tft.drawRect(WAVE_LEFT, WAVE_TOP, WAVE_WIDTH, WAVE_HEIGHT, CLR_DARKERBLUE);
@@ -55,24 +54,32 @@ void TFTDisplay::drawStaticFrame() {
     }
   }
 
-  // Scale labels on waveform
-  tft.setFreeFont(FONT_SMALL);
+  // Scale labels on waveform (small built-in font)
+  tft.setFreeFont(NULL);
+  tft.setTextFont(1);
   tft.setTextColor(CLR_SLATEBLUE, CLR_BACKGROUND);
   tft.setTextDatum(TL_DATUM);
-  tft.drawString("50", WAVE_LEFT + 3, WAVE_TOP + 3);
+  tft.drawString("50", WAVE_LEFT + SCALE_INSET, WAVE_TOP + SCALE_INSET);
   tft.setTextDatum(BL_DATUM);
-  tft.drawString("0", WAVE_LEFT + 3, WAVE_TOP + WAVE_HEIGHT - 3);
+  tft.drawString("0", WAVE_LEFT + SCALE_INSET, WAVE_TOP + WAVE_HEIGHT - SCALE_INSET);
 
   // Vertical separator between waveform and parameters
   tft.drawFastVLine(PARAM_LEFT - 1, WAVE_TOP, WAVE_HEIGHT, CLR_DARKERBLUE);
 
   // Parameter panel static labels
-  tft.setFreeFont(FONT_LABEL);
-  tft.setTextColor(CLR_SLATEBLUE, CLR_BACKGROUND);
   tft.setTextDatum(TL_DATUM);
-  tft.drawString("CO2", PARAM_LEFT + 4, WAVE_TOP + 4);
-  tft.drawString("mmHg", PARAM_LEFT + 4, WAVE_TOP + 62);
-  tft.drawString("RR", PARAM_LEFT + 4, WAVE_TOP + 88);
+  tft.setTextColor(CLR_SLATEBLUE, CLR_BACKGROUND);
+
+  // Section headers in GFX font
+  tft.setFreeFont(FONT_LABEL);
+  tft.drawString("CO2", PARAM_LEFT + PARAM_PAD, WAVE_TOP + CO2_LABEL_Y);
+  tft.drawString("RR", PARAM_LEFT + PARAM_PAD, WAVE_TOP + RR_LABEL_Y);
+
+  // Unit labels in small built-in font
+  tft.setFreeFont(NULL);
+  tft.setTextFont(1);
+  tft.drawString("mmHg", PARAM_LEFT + PARAM_PAD, WAVE_TOP + CO2_UNIT_Y);
+  tft.drawString("bpm", PARAM_LEFT + PARAM_PAD, WAVE_TOP + RR_UNIT_Y);
 
   statusDrawn = false;
   paramsDrawn = false;
@@ -85,8 +92,7 @@ void TFTDisplay::drawStatusBar() {
   if (statusDrawn && continuous == prevContinuousMode && usbProto == prevUsbProtocol) return;
 
   // Clear badge area on the right side of the status bar
-  int16_t badgeX = 200;
-  tft.fillRect(badgeX, 2, SCREEN_W - badgeX - 2, STATUS_H - 4, CLR_DEEPBLUE);
+  tft.fillRect(BADGE_AREA_X, 2, SCREEN_W - BADGE_AREA_X - 2, STATUS_H - 4, CLR_DEEPBLUE);
 
   tft.setFreeFont(FONT_SMALL);
   tft.setTextDatum(MR_DATUM);
@@ -94,19 +100,19 @@ void TFTDisplay::drawStatusBar() {
   // Streaming mode badge
   if (continuous) {
     tft.setTextColor(CLR_GREENISH, CLR_DEEPBLUE);
-    tft.drawString("RUN", SCREEN_W - 8, STATUS_H / 2);
+    tft.drawString("RUN", SCREEN_W - BADGE_MARGIN, STATUS_H / 2);
   } else {
     tft.setTextColor(CLR_REDDISH, CLR_DEEPBLUE);
-    tft.drawString("IDLE", SCREEN_W - 8, STATUS_H / 2);
+    tft.drawString("IDLE", SCREEN_W - BADGE_MARGIN, STATUS_H / 2);
   }
 
   // USB mode badge
   if (usbProto) {
     tft.setTextColor(CLR_LOGOBLUE, CLR_DEEPBLUE);
-    tft.drawString("PROTO", SCREEN_W - 50, STATUS_H / 2);
+    tft.drawString("PROTO", SCREEN_W - BADGE_USB_OFS, STATUS_H / 2);
   } else {
     tft.setTextColor(CLR_SLATEBLUE, CLR_DEEPBLUE);
-    tft.drawString("DEBUG", SCREEN_W - 50, STATUS_H / 2);
+    tft.drawString("DEBUG", SCREEN_W - BADGE_USB_OFS, STATUS_H / 2);
   }
 
   prevContinuousMode = continuous;
@@ -128,8 +134,7 @@ void TFTDisplay::drawParamPanel() {
 
   // CO2 value — large font, only update when changed
   if (co2Changed) {
-    // Clear the value area
-    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + 20, PARAM_WIDTH - 4, 40, CLR_BACKGROUND);
+    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + CO2_VALUE_Y - 4, PARAM_WIDTH - 4, CO2_VALUE_H, CLR_BACKGROUND);
 
     tft.setFreeFont(FONT_BIG);
     tft.setTextDatum(TL_DATUM);
@@ -137,22 +142,22 @@ void TFTDisplay::drawParamPanel() {
 
     char buf[8];
     dtostrf(co2Rounded, 4, 1, buf);
-    tft.drawString(buf, PARAM_LEFT + 4, WAVE_TOP + 24);
+    tft.drawString(buf, PARAM_LEFT + PARAM_PAD, WAVE_TOP + CO2_VALUE_Y);
 
     prevCO2 = co2Rounded;
   }
 
   // Respiratory rate
   if (rateChanged) {
-    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + 104, PARAM_WIDTH - 4, 28, CLR_BACKGROUND);
+    tft.fillRect(PARAM_LEFT + 2, WAVE_TOP + RR_VALUE_Y - 4, PARAM_WIDTH - 4, RR_VALUE_H, CLR_BACKGROUND);
 
     tft.setFreeFont(FONT_VALUE);
     tft.setTextColor(CLR_LOGOBLUE, CLR_BACKGROUND);
     tft.setTextDatum(TL_DATUM);
 
     char buf[12];
-    snprintf(buf, sizeof(buf), "%d bpm", rate);
-    tft.drawString(buf, PARAM_LEFT + 4, WAVE_TOP + 110);
+    snprintf(buf, sizeof(buf), "%d", rate);
+    tft.drawString(buf, PARAM_LEFT + PARAM_PAD, WAVE_TOP + RR_VALUE_Y);
 
     prevRate = rate;
   }
@@ -223,9 +228,12 @@ void TFTDisplay::clear() {
 }
 
 void TFTDisplay::showMessage(const char* msg) {
-  tft.fillRect(60, 60, 200, 50, CLR_DEEPBLUE);
+  int16_t msgW = 200, msgH = 50;
+  int16_t msgX = (SCREEN_W - msgW) / 2;
+  int16_t msgY = (SCREEN_H - msgH) / 2;
+  tft.fillRect(msgX, msgY, msgW, msgH, CLR_DEEPBLUE);
   tft.setFreeFont(FONT_VALUE);
   tft.setTextColor(CLR_BACKGROUND, CLR_DEEPBLUE);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString(msg, SCREEN_W / 2, 85);
+  tft.drawString(msg, SCREEN_W / 2, msgY + msgH / 2);
 }

@@ -333,6 +333,49 @@ Landscape mode, 320 x 170 pixels, custom color palette on blue-grey background.
 | CLR_GREENISH | `0x2444` | Waveform trace, CO2 value |
 | CLR_REDDISH | `0xA4B2` | IDLE badge |
 
+## Serial CLI Commands
+
+The debug CLI is available on the USB serial port (115200 baud) when in DEBUG mode. Commands are case-insensitive, terminated by newline. The CLI is unavailable when USB is in PROTOCOL mode — use the web interface instead.
+
+### Waveform Control
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `amp <value>` | mmHg (float) | Set CO2 waveform amplitude (peak EtCO2 value). Default: 38.0 mmHg |
+| `freq <value>` | br/min (5–90) | Set respiratory rate in breaths per minute. Internally stored as Hz (value / 60). Default: 15 br/min (0.25 Hz) |
+| `base <value>` | mmHg (float) | Set inspiratory CO2 baseline. Default: 0.0 mmHg |
+| `wavetype <n>` | 0 or 1 | Select waveform shape. 0 = sine wave, 1 = realistic capnogram with smoothstep transitions |
+
+### Source Selection
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `usecoco <n>` | 0 or 1 | Enable (1) or disable (0) the Sensirion CoCo sensor as CO2 source. Falls back to simulation if sensor is not connected |
+
+### USB Mode
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `usbmode <n>` | 0 or 1 | Switch USB port function. 0 = DEBUG (CLI available), 1 = PROTOCOL (USB mirrors Serial1 Respironics output, CLI becomes unavailable, streaming auto-starts) |
+
+### Configuration Persistence
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `save` | - | Save current waveform settings (amplitude, frequency, baseline, waveform type, CoCo enable) to ESP32 NVS (non-volatile storage) |
+| `load` | - | Load saved settings from NVS and apply them. Prints updated status |
+| `clear` | - | Erase saved configuration from NVS, restoring factory defaults on next boot |
+
+### Information
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `status` | - | Display all current settings: waveform parameters (amplitude, resp rate in br/min, baseline), waveform type, CO2 source, device mode (CONTINUOUS/IDLE), initialization state, USB mode |
+| `ip` | - | Show WiFi connection info. In AP mode: SSID, password, and IP (`WiFi.softAPIP()`). In STA mode: SSID and IP (`WiFi.localIP()`) |
+| `help` | - | Print command summary |
+
+---
+
 ## Connectivity
 
 - **WiFi:** Access Point mode by default (SSID: `CO2-Emulator`, password: `emulator123`). Station mode configurable in Config.h.
