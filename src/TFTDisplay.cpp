@@ -41,7 +41,7 @@ void TFTDisplay::drawStaticFrame() {
   tft.setFreeFont(FONT_TITLE);
   tft.setTextColor(CLR_BACKGROUND, CLR_DEEPBLUE);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("CO2 EMULATOR", TITLE_MARGIN, STATUS_H / 2);
+  tft.drawString("CAPNO EMULATOR", TITLE_MARGIN, STATUS_H / 2);
 
   // Waveform area border
   tft.drawRect(WAVE_LEFT, WAVE_TOP, WAVE_WIDTH, WAVE_HEIGHT, CLR_DARKERBLUE);

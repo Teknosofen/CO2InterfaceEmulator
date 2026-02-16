@@ -20,7 +20,7 @@
 
 // WiFi Configuration - CHANGE THESE!
 #define WIFI_AP_MODE true           // true = Access Point, false = Station
-#define WIFI_AP_SSID "CO2-Emulator"
+#define WIFI_AP_SSID "Capno-Emulator"
 #define WIFI_AP_PASSWORD "emulator123"
 
 // Station mode settings (if WIFI_AP_MODE = false)

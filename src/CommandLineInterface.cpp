@@ -11,7 +11,7 @@ void CommandLineInterface::setUsbModeCallback(std::function<void(bool)> cb) {
 }
 
 void CommandLineInterface::printHelp() {
-  serial.println("\n=== CO2 Emulator Commands ===");
+  serial.println("\n=== Capno Emulator Commands ===");
   serial.println("Wave: amp/freq/base <value>  (freq in br/min)");
   serial.println("Wave: wavetype <0=sine|1=capno>");
   serial.println("Sensor: usecoco <0/1>");

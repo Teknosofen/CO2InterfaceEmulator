@@ -1,4 +1,5 @@
 #include "WebInterface.h"
+#include <ESPmDNS.h>
 
 WebInterface::WebInterface(WaveformGenerator& wave,
                            DeviceState& dev, ConfigStorage& stor, ShdlcSensorInterface& sens)
@@ -21,6 +22,8 @@ bool WebInterface::begin() {
     CMD_SERIAL.println(WIFI_AP_PASSWORD);
     CMD_SERIAL.print("IP address: ");
     CMD_SERIAL.println(WiFi.softAPIP());
+    MDNS.begin("capno");
+    CMD_SERIAL.println("mDNS: http://capno.local");
   #else
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_STA_SSID, WIFI_STA_PASSWORD);
@@ -41,6 +44,8 @@ bool WebInterface::begin() {
     CMD_SERIAL.println("\nWiFi connected!");
     CMD_SERIAL.print("IP address: ");
     CMD_SERIAL.println(WiFi.localIP());
+    MDNS.begin("capno");
+    CMD_SERIAL.println("mDNS: http://capno.local");
   #endif
 
   setupRoutes();
@@ -145,7 +150,7 @@ void WebInterface::update() {
 
 String WebInterface::getIndexHTML() {
   return R"rawliteral(<!DOCTYPE html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>CO2 Emulator</title>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Capno Emulator</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f0f2f5;padding:20px}
 .container{max-width:1000px;margin:0 auto}.card{background:#fff;padding:20px;margin:10px 0;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
@@ -170,7 +175,7 @@ button.secondary{background:#5f6368}button.secondary:hover{background:#4d5156}
 @media(max-width:768px){.container{padding:10px}.card{padding:15px}input[type="range"]{width:150px}label{min-width:120px}}
 </style></head><body>
 <div class="container">
-<h1>CO2 Interface Emulator</h1>
+<h1>Capno Emulator</h1>
 <div class="card"><h2>Live Data</h2><canvas id="waveform"></canvas>
 <div class="info-row">
 <div class="info-item"><div class="info-label">Current CO2</div><div class="info-value"><span id="currentCO2">--</span> <span style="font-size:14px">mmHg</span></div></div>
