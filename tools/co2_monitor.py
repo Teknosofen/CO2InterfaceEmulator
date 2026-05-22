@@ -536,7 +536,7 @@ class App:
         self.ax.set_title("CO2 Waveform")
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("CO2 (mmHg)")
-        self.ax.set_ylim(-2, 60)
+        self.ax.set_ylim(-2, 50)
         self.ax.set_xlim(0, PLOT_SECONDS)
         self.ax.grid(True, alpha=0.3)
         for ch in self.channels:

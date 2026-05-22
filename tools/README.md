@@ -65,3 +65,62 @@ resp_rate_bpm, insp_co2_mmHg, status1, status2, status3`.
 
 DPI-derived columns (ETCO2, RR, InspCO2, status*) hold the most recent
 reported value and stay populated until the next update arrives.
+
+---
+
+## `coco_monitor.py`
+
+A sibling tool to `co2_monitor.py` that talks directly to one or two
+Sensirion **CoCo** CO2 sensors over the SHDLC/UART interface described in
+`Documentation/Coco_ShdlcUartInterface_v1.0.0.pdf`. The PC acts as SHDLC
+master: on Connect it issues `Stop Measurement`, `Get Version`,
+`Device Info` and `Start Measurement (periodic)`, then polls
+`Read Measurement Values` at the configured rate.
+
+### Install
+
+```powershell
+pip install pyserial matplotlib
+```
+
+### Run
+
+```powershell
+python tools/coco_monitor.py
+```
+
+### Use
+
+1. Pick the COM port the CoCo (or the CoCo simulator) is on. Default
+   baud is **115200**, default SHDLC slave address is **0**.
+2. Set the desired **Poll Hz** (default 20 Hz). You can change it live
+   while connected.
+3. Click **Connect**. The tool sends the start/identify sequence and
+   begins polling. Detected product type / FW / HW are shown in the
+   readouts row.
+4. CSV and raw byte logging are independent toggles, identical in spirit
+   to `co2_monitor.py`.
+5. Use **Freeze** to pause the scrolling plot for inspection (incoming
+   samples are dropped while frozen; unfreezing restarts the X axis).
+
+### CSV format
+
+Columns: `pc_time_iso, pc_time_s, counter, co2_mmHg, flow_slm,
+pressure_hPa, temperature_C`.
+
+Units follow the v1.0.0 SHDLC interface specification: CO2 in mmHg,
+flow in standard L/min, pressure in hPa (= mbar), temperature in °C.
+Any column is left empty when the sensor reported its invalid sentinel
+(`0xFFFF` for CO2, `0x7FFF` for flow / temperature, `0xFFFFFFFF` for
+pressure).
+
+### Maximum sample rate
+
+`coco_monitor.py` uses `Read Measurement Values` (`0x03`), which returns
+the latest single sample. Polling faster than the sensor's internal
+update rate just returns the same `counter` value again. Sensirion's
+own Control Center software achieves 250 Hz by using
+`Read Buffered Values` (`0x04`) instead, which returns *many* samples
+per SHDLC frame from the device's circular buffer. The per-sample
+layout of `0x04` is firmware-version-dependent and is not pinned down
+in spec v1.0.0, so it is not implemented here.
